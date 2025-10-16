@@ -9,12 +9,31 @@ st.title("🏥 Healthcare Monitoring AI Agent")
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Health Tips"])
 
-# Mock data
+import sqlite3
+
+DB_NAME = "health_data.db"
+
+conn = sqlite3.connect(DB_NAME)
+c = conn.cursor()
+
+# Medications
+c.execute("SELECT med_name, schedule FROM medications")
+med_rows = c.fetchall()
+medications = [f"{row[0]} ({row[1]})" for row in med_rows] if med_rows else []
+
+# Fitness
+c.execute("SELECT steps, calories, heart_rate FROM fitness_data ORDER BY id DESC LIMIT 1")
+row = c.fetchone()
+fitness_data = {"steps": row[0], "calories": row[1], "heart_rate": row[2]} if row else {"steps":0,"calories":0,"heart_rate":0}
+
+conn.close()
+
 mock_data = {
-    "medications": ["Paracetamol 500mg", "Vitamin D3", "Amoxicillin 250mg"],
-    "fitness": {"steps": 8421, "calories": 320, "heart_rate": 78},
+    "medications": medications,
+    "fitness": fitness_data,
     "tips": ["Stay hydrated", "Walk 30 mins daily", "Avoid junk food"]
 }
+
 
 # Main content
 if page == "Medication Tracker":
