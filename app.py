@@ -6,6 +6,8 @@ from scripts.db_operations import (
     fetch_medications,
     fetch_fitness
 )
+# New import for enhanced Day 5 plan
+from scripts.api_utils import get_nutrition_data 
 
 # App setup
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
@@ -16,9 +18,10 @@ create_tables()
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Health Tips"])
+# UPDATED: Added "Nutrition Insights" to the navigation
+page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips"])
 
-# ----- PAGE 1: Medication Tracker -----
+# ----- PAGE 1: Medication Tracker (UNCHANGED) -----
 if page == "Medication Tracker":
     st.header("💊 Medication Tracker")
 
@@ -42,7 +45,7 @@ if page == "Medication Tracker":
     else:
         st.info("No medications found yet.")
 
-# ----- PAGE 2: Fitness Data -----
+# ----- PAGE 2: Fitness Data (UNCHANGED) -----
 elif page == "Fitness Data":
     st.header("🏃 Fitness Data Entry")
 
@@ -63,7 +66,37 @@ elif page == "Fitness Data":
     st.metric("Calories", fitness["calories"])
     st.metric("Heart Rate", f"{fitness['heart_rate']} bpm")
 
-# ----- PAGE 3: Health Tips -----
+# ----- NEW PAGE: Nutrition Insights (Enhanced Day 5 Integration) -----
+elif page == "Nutrition Insights":
+    st.header("🍎 Nutrition Insights (from OpenFoodFacts API Sample)")
+    st.caption("This data is loaded from the openfoodfacts_sample.json file collected on Day 4.")
+
+    # Fetch the data using the new utility function
+    nutrition_data = get_nutrition_data()
+
+    if nutrition_data:
+        st.subheader(f"Product: {nutrition_data['name']}")
+        
+        # Display key metrics using columns
+        col_cal, col_prot, col_sug, col_fat = st.columns(4)
+        
+        with col_cal:
+            st.metric(label="Energy (kcal/100g)", value=f"{nutrition_data['calories_100g']} kcal")
+        with col_prot:
+            st.metric(label="Protein (per 100g)", value=f"{nutrition_data['proteins_100g']} g")
+        with col_sug:
+            st.metric(label="Sugar (per 100g)", value=f"{nutrition_data['sugars_100g']} g")
+        with col_fat:
+            st.metric(label="Fat (per 100g)", value=f"{nutrition_data['fat_100g']} g")
+            
+        st.markdown("---")
+        st.info("💡 **Next Step:** This page will be enhanced with interactive charts and integrated into the core LLM agent.")
+
+    else:
+        st.warning("Could not load or parse nutrition data. Ensure 'docs/api_samples/openfoodfacts_sample.json' exists.")
+
+
+# ----- PAGE 4: Health Tips (UNCHANGED) -----
 elif page == "Health Tips":
     st.header("💡 Health Tips")
     st.info("💧 Stay hydrated and drink at least 2–3 liters of water daily.")
