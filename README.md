@@ -67,3 +67,59 @@ To integrate the basic health data parsing logic, display basic fitness metrics 
 
 Proof of Progress
 The Streamlit application now shows a new section, "Nutrition Insights," displaying parsed nutrition data from the OpenFoodFacts API sample, fulfilling the goal of making the Day 4 backend work visible on the UI.
+
+Day-6 Progress Report Deployment  
+Lead:Sayeed Baig 
+ 
+ 
+ 
+Objective Set up the entire project environment and deploy a basic Streamlit app with a 
+placeholder for health monitoring and medication tracking. 
+Deliverable 
+Met Live URL + functional demo 
+ 
+ 
+Tasks & Status 
+Task Description Status 
+GitHub 
+Preparation 
+Ensured requirements.txt, app.py, and utility scripts were current 
+and pushed to the main branch. Completed 
+Streamlit 
+Cloud Setup 
+Created Streamlit Cloud account and connected the Healthcare
+Monitoring-Agent-Team GitHub repository4. Completed 
+Deployment Successfully deployed the basic application featuring Medication 
+Tracker, Fitness Data, and Nutrition Insights5. Success 
+Accessibility 
+Check 
+Verified public link is functional and accessible: https://healthcare
+monitoring-agent-team-cjkxjrhjp5rsguhudxxckr.streamlit.app/. Verified 
+ 
+Results / Output 
+A working, publicly accessible deployed application is live on Streamlit Cloud, marking the completion of 
+the foundation phase and the Quick Win milestone for Week 1. 
+ 
+Deployed Link : https://healthcare-monitoring-agent-team-cjkxjrhjp5rsguhudxxckr.streamlit.app/
+
+
+WEEK-2 
+
+Week-2  
+Day 1 Progress Report
+Date: October 20, 2025 Activity: AI Chatbot Foundation Lead: Sayeed 
+Objective Achieved: Implement basic question-answer logic for medication tracking using local data (SQLite)
+1. Key Accomplishments (Track A: AI Reasoning)
+The foundation for the AI Agent has been successfully established by creating the necessary file structure and core logic.
+•	Folder Structure: Created the new required directory: agents/.
+•	Core Logic File: Created agents/health_chatbot.py.
+•	Agent Logic (Tool-Agnostic): Implemented the process_health_query() function to serve as the core Q&A agent logic.
+•	Local Tool Integration: Successfully integrated the agent logic with the existing SQLite database (health_data.db) via the get_medication_info_from_db() function. This function acts as the local tool that the agent uses to retrieve structured medication data.
+2. Deliverable Verification
+•	The core deliverable was verified in the terminal environment
+Input Query (Terminal)	Expected Action	Actual Output
+"When do I need to take Paracetamol?"	Call DB Tool, Fetch Schedule for Paracetamol.	Successfully returned Paracetamol 500mg: Morning & Night (verified with terminal output).
+"What about Dolo650?"	Call DB Tool, Fetch Schedule for Dolo650.	Successfully returned Dolo650: after breakfast Morning (verified with terminal output).
+"Give me a quick health tip"	Trigger Hardcoded Tip.	Successfully returned a generic health tip.
+
+
