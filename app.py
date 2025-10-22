@@ -8,7 +8,7 @@ from scripts.db_operations import (
 )
 # New import for enhanced Day 5 plan
 from scripts.api_utils import get_nutrition_data 
-
+from agents.health_chatbot import process_health_query
 # App setup
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
 st.title("🏥 Healthcare Monitoring AI Agent")
@@ -19,7 +19,7 @@ create_tables()
 # Sidebar Navigation
 st.sidebar.title("Navigation")
 # UPDATED: Added "Nutrition Insights" to the navigation
-page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips"])
+page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips","AI Assistant"])
 
 # ----- PAGE 1: Medication Tracker (UNCHANGED) -----
 if page == "Medication Tracker":
@@ -102,3 +102,15 @@ elif page == "Health Tips":
     st.info("💧 Stay hydrated and drink at least 2–3 liters of water daily.")
     st.info("🚶 Walk for 30 minutes every day.")
     st.info("🍎 Eat balanced meals and avoid junk food.")
+
+# ----- PAGE %: AI Assistant -----
+elif page == "AI Assistant":
+    st.subheader("🤖 AI Health Assistant")
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if user_input :=st.chat_input("Ask me about your medications or health..."):
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        response = process_health_query(user_input)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).write(msg["content"])
