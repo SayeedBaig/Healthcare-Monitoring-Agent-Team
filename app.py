@@ -1,4 +1,5 @@
 import streamlit as st
+from backend.auth import role_selector
 from scripts.db_operations import (
     create_tables,
     add_medication,
@@ -18,6 +19,7 @@ create_tables()
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
+user_role = role_selector()
 # UPDATED: Added "Nutrition Insights" to the navigation
 page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips","AI Assistant"])
 
