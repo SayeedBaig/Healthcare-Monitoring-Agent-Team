@@ -103,7 +103,7 @@ elif page == "Health Tips":
     st.info("🚶 Walk for 30 minutes every day.")
     st.info("🍎 Eat balanced meals and avoid junk food.")
 
-# ----- PAGE %: AI Assistant -----
+# ----- PAGE 5: AI Assistant -----
 elif page == "AI Assistant":
     st.subheader("🤖 AI Health Assistant")
     if "messages" not in st.session_state:
