@@ -37,3 +37,9 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
 watchdog==6.0.0
+
+# Week 2 Dependencies
+fastapi
+uvicorn
+redis             # For the Redis client (Track B infra)
+python-dotenv     # For environment variable handling

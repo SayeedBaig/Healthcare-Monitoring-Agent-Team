@@ -1,0 +1,31 @@
+# .github/workflows/deploy.yml
+
+name: Health Agent Continuous Integration (CI) Checks
+
+# Trigger the workflow on every push to the main branch
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test: # Changed job name to "test"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use a stable Python version
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      # Keep the step for running tests
+      - name: Run Pytest (Basic Check)
+        run: echo "Starting placeholder CI check..."
+             # When tests are written (Day 7), this line becomes: pytest tests/
