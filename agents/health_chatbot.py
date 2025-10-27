@@ -1,59 +1,57 @@
-# agents/health_chatbot.py (CORRECTED for your existing DB schema)
+# agents/health_chatbot.py (FINAL PATH-FIXED VERSION)
 
 import sqlite3
 import os
 import sys
+import time
+
+# 🌟 FIX START: MUST BE HERE 🌟
+# Append the project root (parent directory) to sys.path so Python can find 'agents'
+# This is necessary because we are executing a file *inside* the 'agents' directory.
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+# 🌟 FIX END 🌟
+
+# Now that the path is set, the import below will succeed.
+from agents.analytics_agent import get_analytics # Week 3, Day 2 Import
+
 
 # --- Configuration & Setup ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR) # This resolves to the project root
 DB_PATH = os.path.join(PROJECT_ROOT, "health_data.db")
+
+# 🌟 Week 2, Day 5: Mock Redis Cache Implementation 🌟
+CHATBOT_CACHE = {} 
+CACHE_TTL_SECONDS = 30 
+MAX_CACHE_SIZE = 3 
 
 # ----------------------------
 
 def setup_test_medication_data():
-    """
-    Utility function to ensure a 'medications' table and a test entry exists.
-    NOTE: This is updated to use YOUR schema: med_name and schedule.
-    """
+    """Utility function to ensure a test entry exists."""
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # We don't try to CREATE the table here, as it exists, but we ensure the test data exists.
-        
-        # We need to insert a test medication using YOUR actual columns: med_name and schedule.
-        # Data from your DB: 'Dolo650', 'after breakfast Morning'
-        # Data from your DB: 'Paracetamol 500mg', 'Morning and Night'
-
-        # Insert a test medication if not present (using INSERT OR REPLACE on primary key)
         cursor.execute(
             "INSERT OR REPLACE INTO medications (id, user_id, med_name, schedule) VALUES (?, ?, ?, ?)",
             (10, 1, 'Paracetamol 500mg', 'Morning and Night')
         )
         conn.commit()
     except sqlite3.Error as e:
-        # If the table creation/insertion fails here, something is fundamentally wrong with the DB file.
         print(f"ERROR: Database setup failed: {e}")
-        # sys.exit(1) # Re-add if you want to force exit on error
     finally:
         if conn:
             conn.close()
 
-# --- AI Agent Tool: Database Lookup (using your actual column names) ---
+# --- AI Agent Tool: Database Lookup ---
 
 def get_medication_info_from_db(medication_search_term: str) -> str:
-    """
-    Fetches information for a specific medication from the SQLite database.
-    Updated to use 'med_name' and 'schedule' columns.
-    """
+    """Fetches information from the SQLite database."""
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # Search the database for the medication using YOUR column names
         cursor.execute(
             "SELECT med_name, schedule FROM medications WHERE med_name LIKE ?", 
             (f'%{medication_search_term}%',)
@@ -76,65 +74,106 @@ def get_medication_info_from_db(medication_search_term: str) -> str:
         if conn:
             conn.close()
 
-# --- AI Agent Logic (Simulating LLM Reasoning) ---
+# --- AI Agent Logic (Core Dispatch) ---
 
 def process_health_query(user_query: str) -> str:
     """
-    The core chatbot function. It uses simple keyword matching to trigger the tool call.
+    The core chatbot function, with caching and insight generation.
     """
     query_lower = user_query.lower()
+    
+    # --- Caching: 1. Check Cache ---
+    if query_lower in CHATBOT_CACHE:
+        cache_entry = CHATBOT_CACHE[query_lower]
+        if time.time() - cache_entry["timestamp"] < CACHE_TTL_SECONDS:
+            print(f"🤖 [CONSOLE LOG] Cache HIT for: '{user_query}'")
+            return f"(Cached Response) {cache_entry['response']}"
+        else:
+            del CHATBOT_CACHE[query_lower]
+            print(f"🤖 [CONSOLE LOG] Cache MISS (Expired) for: '{user_query}'")
+    else:
+        print(f"🤖 [CONSOLE LOG] Cache MISS (New Query) for: '{user_query}'")
 
-    # 1. Medication Info Logic (e.g., "When to take Paracetamol?")
-    if "paracetamol" in query_lower or "dolo" in query_lower or "dosage" in query_lower:
-        # We'll use a specific term from the query to search your DB
+
+    # --- Agent Logic: 2. Insight Generation (Week 3, Day 2 Logic) ---
+    response = ""
+
+    if "health review" in query_lower or "insights" in query_lower or "how am i doing" in query_lower or "fitness" in query_lower:
+        
+        # Call the Analytics Agent using the correct function name
+        insights = get_analytics()
+        
+        # Determine the status messages based on the keys returned by get_analytics()
+        # NOTE: Using .get() for safety, and :.0f for steps which is float in analytics_agent.py
+        steps_message = f"Your average daily steps: **{insights.get('average_steps', 0):.0f}**."
+        calories_message = f"Calorie analysis: **{insights.get('calories_vs_target', 'N/A')}** vs. your 2000 target."
+        hr_message = f"Heart rate status: **{insights.get('heart_rate_status', 'N/A')}**."
+        
+        # Generate the contextual, personalized response
+        response = (
+            f"Here is your latest health metrics review:\n\n"
+            f"🚶 Steps: {steps_message}\n"
+            f"🍽️ Calories: {calories_message}\n"
+            f"❤️ Heart Rate: {hr_message}\n\n"
+            f"Keep up the great work on your monitoring!"
+        )
+    
+    # --- Agent Logic: 3. Medication Info Logic (Week 2 Logic) ---
+    elif "paracetamol" in query_lower or "dolo" in query_lower or "dosage" in query_lower:
         if "dolo" in query_lower:
             search_term = "Dolo650"
         else:
-            search_term = "Paracetamol" # Covers "Paracetamol 500mg"
-        
-        # Calls the local database 'tool'
-        return get_medication_info_from_db(search_term)
+            search_term = "Paracetamol"
+        response = get_medication_info_from_db(search_term)
     
-    # 2. Simple Health Tip Logic (using hardcoded response)
+    # --- Agent Logic: 4. Simple Health Tip Logic (Week 2 Logic) ---
     elif "tip" in query_lower or "advice" in query_lower:
-        return "🧠 **Health Tip**: Tracking your daily steps is vital for cardiovascular health. Aim for at least 7,500 steps!"
+        response = "🧠 **Health Tip**: Tracking your daily steps is vital for cardiovascular health. Aim for at least 7,500 steps!"
 
-    # 3. Default/Fallback response
+    # --- Agent Logic: 5. Default/Fallback response ---
     else:
-        return "Hello! I am your Healthcare AI Agent. I can look up your medication schedule or give you a quick health tip. Try asking about 'Paracetamol'."
+        response = "Hello! I am your Healthcare AI Agent. I can look up your medication schedule or give you a full **health review**. What can I help with?"
 
 
-# --- Day 1 Deliverable Verification ---
+    # --- Caching: 2. Store New Response ---
+    if response:
+        if len(CHATBOT_CACHE) >= MAX_CACHE_SIZE:
+            oldest_key = next(iter(CHATBOT_CACHE))
+            del CHATBOT_CACHE[oldest_key]
+            
+        CHATBOT_CACHE[query_lower] = {
+            "response": response,
+            "timestamp": time.time()
+        }
+
+    return response
+
+# --- Deliverable Verification ---
 
 if __name__ == "__main__":
-    print(f"--- Day 1 Deliverable: Chatbot Terminal Test ---")
     
-    # 1. Ensure the necessary table and data exist
+    # The try/except block below is now redundant because the fix is at the top, 
+    # but we will keep it simple for final verification.
+
+    print(f"--- Chatbot Complete Feature Test (Week 3, Day 2) ---")
     setup_test_medication_data()
     print(f"Database path: {DB_PATH}")
     
-    # 2. Test 1: Query that triggers the SQLite lookup (Paracetamol)
-    test_query_1 = "When do I need to take Paracetamol?"
+    # Test 1: Insight Generation (New Feature)
+    test_query_1 = "Can you give me a health review?"
     print(f"\n[User]: {test_query_1}")
     response_1 = process_health_query(test_query_1)
     print(f"[Agent]: {response_1}")
 
-    # 3. Test 2: Query that triggers a generic response
-    test_query_2 = "Give me a quick health tip"
+    # Test 2: Medication Lookup (Week 2 Feature)
+    test_query_2 = "What about Dolo650?"
     print(f"\n[User]: {test_query_2}")
     response_2 = process_health_query(test_query_2)
     print(f"[Agent]: {response_2}")
 
-    # 4. Test 3: Query for an unknown medication
-    test_query_3 = "Check my dosage for Lisinopril"
-    print(f"\n[User]: {test_query_3}")
-    response_3 = process_health_query(test_query_3)
+    # Test 3: Cache Hit Check
+    print(f"\n[User]: {test_query_1} (Second run for cache check)")
+    response_3 = process_health_query(test_query_1)
     print(f"[Agent]: {response_3}")
 
-    # 5. Test 4: Query for a different tracked medication
-    test_query_4 = "What about Dolo650?"
-    print(f"\n[User]: {test_query_4}")
-    response_4 = process_health_query(test_query_4)
-    print(f"[Agent]: {response_4}")
-
-    print("\n--- Day 1 Deliverable Complete ---")
+    print("\n--- Verification Complete ---")
