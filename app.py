@@ -21,7 +21,7 @@ create_tables()
 st.sidebar.title("Navigation")
 user_role = role_selector()
 # UPDATED: Added "Nutrition Insights" to the navigation
-page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips","AI Assistant"])
+page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips","AI Assistant","Health Analytics"])
 
 # ----- PAGE 1: Medication Tracker (UNCHANGED) -----
 if page == "Medication Tracker":
@@ -101,7 +101,7 @@ elif page == "Nutrition Insights":
 # ----- PAGE 4: Health Tips (UNCHANGED) -----
 elif page == "Health Tips":
     st.header("💡 Health Tips")
-    st.info("💧 Stay hydrated and drink at least 2–3 liters of water daily.")
+    st.info("💧 Stay hydrated and drink at least 2-3 liters of water daily.")
     st.info("🚶 Walk for 30 minutes every day.")
     st.info("🍎 Eat balanced meals and avoid junk food.")
 
@@ -116,3 +116,9 @@ elif page == "AI Assistant":
         st.session_state.messages.append({"role": "assistant", "content": response})
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).write(msg["content"])
+
+# ----- PAGE 6: Health Analytics -----
+elif page == "Health Analytics":
+    st.header("📈 Health Analytics")
+    from ui import charts_section
+    charts_section.show_charts()
