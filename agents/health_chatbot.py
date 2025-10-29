@@ -3,6 +3,8 @@
 import sqlite3
 import os
 import sys
+from backend.logs_handler import log_error
+
 
 # --- Configuration & Setup ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
