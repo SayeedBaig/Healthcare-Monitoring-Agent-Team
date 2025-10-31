@@ -1,5 +1,6 @@
 import streamlit as st
 from backend.auth import role_selector
+from backend.logs_handler import display_logs
 from scripts.db_operations import (
     create_tables,
     add_medication,
@@ -116,9 +117,15 @@ elif page == "AI Assistant":
         st.session_state.messages.append({"role": "assistant", "content": response})
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).write(msg["content"])
+    st.markdown("---")
+    st.subheader("🪵 System Logs")
+    with st.expander("View System Logs"):
+        display_logs()
 
 # ----- PAGE 6: Health Analytics -----
 elif page == "Health Analytics":
     st.header("📈 Health Analytics")
     from ui import charts_section
     charts_section.show_charts()
+
+    
