@@ -49,7 +49,7 @@ def test_get_analytics_structure(mock_db_ops):
     assert insights['heart_rate_status'] == "Normal"
 
 
-# --- 3. TESTS FOR CHATBOT CORE (Week 2/3 Integration) ---
+#  3. TESTS FOR CHATBOT CORE (Week 2/3 Integration) 
 
 # Clear cache before running each chatbot test
 @pytest.fixture(autouse=True)

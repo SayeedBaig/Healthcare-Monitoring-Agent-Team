@@ -123,3 +123,12 @@ Input Query (Terminal)	Expected Action	Actual Output
 "Give me a quick health tip"	Trigger Hardcoded Tip.	Successfully returned a generic health tip.
 
 
+
+
+## Week-2 Objectives Summary
+
+Week 2 focused on establishing the core **AI Reasoning (Track A)** and strengthening the **Backend Infrastructure (Track B)**.
+* **AI Agent:** Implemented `agents/health_chatbot.py` for Q&A on medication data via SQLite.
+* **Caching:** Added a mock Redis cache to speed up repeat queries.
+* **Infrastructure:** Created a FastAPI server stub (`backend/fastapi_server.py`) and a placeholder for role-based authentication (`backend/auth.py`).
+* **CI/CD:** Setup automated deployment workflow via Streamlit Cloud's native feature.

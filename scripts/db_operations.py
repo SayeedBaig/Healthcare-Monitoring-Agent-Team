@@ -1,6 +1,7 @@
 import sqlite3
+import os
+DB_NAME = os.path.join(os.path.dirname(__file__), "health_data.db")
 
-DB_NAME = "health_data.db"
 
 # 1️⃣ Create tables
 def create_tables():
