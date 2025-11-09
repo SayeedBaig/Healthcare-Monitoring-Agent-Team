@@ -1,38 +1,31 @@
+# fastapi_server.py
 """
-Merged FastAPI server with:
-- existing /healthdata route
-- /register and /login routes (auth merged into this file)
-- simple protected route example
-
-Notes:
-- This file will try to use helper modules if you created them:
-    auth.auth_service (hash_password, verify_password)
-    auth.jwt_handler (create_access_token, decode_access_token)
-    auth.roles (Role enum)
-  If those modules are not found, this file will try to use local fallback
-  implementations that require bcrypt and pyjwt to be installed.
-
-- Recommended packages:
-    pip install fastapi uvicorn bcrypt pyjwt python-dotenv pydantic
+FastAPI server integrated with SQLite DB (uses health_data.db by default).
+Features:
+- /healthdata (existing)
+- /register (stores user with role)
+- /login (returns JWT)
+- /protected (any authenticated user)
+- /patient-only (requires role == "patient")
+- /seed-demo-users (dev only; will create users only if they don't exist)
 
 Run:
-    uvicorn fastapi_server:app --reload
+    uvicorn fastapi_server:app --reload --host 127.0.0.1 --port 8000
 """
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Generator
 import os
 
-# Try to load dotenv if present (optional)
+# dotenv (optional)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass
 
-# Try to import helper modules (if you already created them in auth/)
-# If not available, fall back to local implementations below.
+# auth helper imports (use your auth/ files if present, otherwise fallback)
 USE_EXTERNAL_AUTH_MODULES = False
 try:
     from auth.auth_service import hash_password, verify_password  # type: ignore
@@ -42,27 +35,18 @@ try:
 except Exception:
     USE_EXTERNAL_AUTH_MODULES = False
 
-# Fallback simple implementations (require bcrypt + pyjwt)
 if not USE_EXTERNAL_AUTH_MODULES:
-    # Fallback: local simple implementations
-    try:
-        import bcrypt
-        import jwt
-        import time
-    except Exception as e:
-        raise RuntimeError(
-            "Missing auth helper modules AND required packages. "
-            "Install dependencies: pip install bcrypt pyjwt python-dotenv\n"
-            "Or create auth/auth_service.py, auth/jwt_handler.py, auth/roles.py as instructed in your Week-4 roadmap."
-        ) from e
+    # fallback (requires pyjwt & bcrypt installed)
+    import time
+    import jwt
+    import bcrypt
 
     JWT_SECRET = os.getenv("JWT_SECRET", "change_this_secret")
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXP_SECONDS = int(os.getenv("JWT_EXP_SECONDS", "3600"))
 
     def hash_password(plain_password: str) -> str:
-        salt = bcrypt.gensalt()
-        return bcrypt.hashpw(plain_password.encode("utf-8"), salt).decode("utf-8")
+        return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         try:
@@ -75,31 +59,27 @@ if not USE_EXTERNAL_AUTH_MODULES:
         now = int(time.time())
         payload.update({"iat": now, "exp": now + JWT_EXP_SECONDS})
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-        # pyjwt >=2 returns str; older versions return bytes
         if isinstance(token, bytes):
             token = token.decode("utf-8")
         return token
 
     def decode_access_token(token: str) -> Dict[str, Any]:
         try:
-            data = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            return data
+            return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         except jwt.ExpiredSignatureError:
             raise ValueError("Token expired")
         except jwt.InvalidTokenError:
             raise ValueError("Invalid token")
 
-    # Minimal Role enum fallback
     class Role(str):
         PATIENT = "patient"
         DOCTOR = "doctor"
         CAREGIVER = "caregiver"
 
-
 # --- FastAPI app ---
 app = FastAPI(title="Healthcare Monitoring Agent - Backend")
 
-# --- Existing route you had: healthdata ---
+# --- Existing healthdata route ---
 @app.get("/healthdata")
 def get_health_data():
     fitness_data = {
@@ -110,123 +90,112 @@ def get_health_data():
     }
     return fitness_data
 
+# --- Database setup (SQLAlchemy) ---
+# Default DB file name: health_data.db (use DATABASE_URL in .env to override)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./health_data.db")
 
-# --- Simple in-memory user store for initial testing ---
-# Replace this with DB integration (SQLAlchemy / Session) in production.
-users_db = []  # list of dicts: {"name","email","password","role"}
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# User model (keeps parity with earlier roadmap)
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="patient")
+
+# Create tables if they don't exist (safe; won't drop existing data)
+Base.metadata.create_all(bind=engine)
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # --- Pydantic schemas ---
 class RegisterIn(BaseModel):
     name: str
     email: str
     password: str
-    role: str  # expects "patient"|"doctor"|"caregiver"
-
+    role: str
 
 class LoginIn(BaseModel):
     email: str
     password: str
 
-
-# --- Auth endpoints (register / login) ---
+# --- Auth endpoints using DB ---
 @app.post("/register")
-def register(user: RegisterIn):
-    # Validate role
-    allowed_roles = {getattr(Role, "PATIENT"), getattr(Role, "DOCTOR"), getattr(Role, "CAREGIVER")}
-    # allowed_roles may be attribute strings or class attributes; normalize:
-    allowed_role_values = {r if isinstance(r, str) else r.value for r in allowed_roles}
+def register(user: RegisterIn, db: Session = Depends(get_db)):
+    allowed = {"patient", "doctor", "caregiver"}
+    if user.role not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Allowed: {allowed}")
 
-    if user.role not in allowed_role_values:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Allowed: {allowed_role_values}")
-
-    # check existing
-    for u in users_db:
-        if u["email"].lower() == user.email.lower():
-            raise HTTPException(status_code=400, detail="Email already registered")
+    exists = db.query(User).filter(User.email == user.email.lower()).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed = hash_password(user.password)
-    new_user = {
-        "name": user.name,
-        "email": user.email.lower(),
-        "password": hashed,
-        "role": user.role
-    }
-    users_db.append(new_user)
-    return {"message": "User registered successfully", "email": new_user["email"], "role": new_user["role"]}
-
+    db_user = User(name=user.name, email=user.email.lower(), password_hash=hashed, role=user.role)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return {"id": db_user.id, "email": db_user.email, "role": db_user.role}
 
 @app.post("/login")
-def login(payload: LoginIn):
-    # simple lookup
-    for u in users_db:
-        if u["email"].lower() == payload.email.lower():
-            if verify_password(payload.password, u["password"]):
-                token = create_access_token({"email": u["email"], "role": u["role"]})
-                return {"access_token": token, "token_type": "bearer", "role": u["role"]}
-            else:
-                raise HTTPException(status_code=401, detail="Invalid credentials")
+def login(payload: LoginIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
+    return {"access_token": token, "token_type": "bearer", "role": user.role}
 
-    raise HTTPException(status_code=401, detail="Invalid credentials")
-
-
-# --- Example protected route using Authorization: Bearer <token> header ---
-def get_current_user(authorization: Optional[str] = Header(None)):
+# --- Token helper ---
+def get_current_user_from_header(authorization: Optional[str] = Header(None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
-    if authorization.lower().startswith("bearer "):
-        token = authorization.split(" ", 1)[1].strip()
-    else:
-        token = authorization.strip()
+    token = authorization.split(" ", 1)[-1].strip()
     try:
-        decoded = decode_access_token(token)
-        return decoded
+        payload = decode_access_token(token)
+        return payload
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
-
+# Protected generic route
 @app.get("/protected")
-def protected_route(current_user: dict = None, authorization: Optional[str] = Header(None)):
-    # Using dependency manually to preserve simple signature (you can also use Depends)
-    user = get_current_user(authorization)
-    return {"message": "You have accessed a protected endpoint", "user": user}
+def protected_route(current_user: Dict = Depends(get_current_user_from_header)):
+    return {"message": "You have accessed a protected endpoint", "user": current_user}
 
+# Role-protected example (patient only)
+@app.get("/patient-only")
+def patient_only(current_user: Dict = Depends(get_current_user_from_header)):
+    if current_user.get("role") != "patient":
+        raise HTTPException(status_code=403, detail="Forbidden: patient role required")
+    return {"message": "Hello patient", "user": current_user}
 
-# --- Small helper to seed a few users quickly (dev only) ---
+# --- Dev helper: seed users if missing (will not overwrite existing users) ---
 @app.post("/seed-demo-users")
-def seed_demo_users():
-    # Only seed if empty
-    if users_db:
-        return {"message": "Users already seeded", "count": len(users_db)}
+def seed_demo_users(db: Session = Depends(get_db)):
     demo = [
-        ("Patient One", "patient@example.com", "patient123", getattr(Role, "PATIENT") if hasattr(Role, "PATIENT") else "patient"),
-        ("Doctor One", "doctor@example.com", "doctor123", getattr(Role, "DOCTOR") if hasattr(Role, "DOCTOR") else "doctor"),
-        ("Caregiver One", "caregiver@example.com", "caregiver123", getattr(Role, "CAREGIVER") if hasattr(Role, "CAREGIVER") else "caregiver"),
+        ("Patient One", "patient@example.com", "patient123", Role.PATIENT if hasattr(Role, "PATIENT") else "patient"),
+        ("Doctor One", "doctor@example.com", "doctor123", Role.DOCTOR if hasattr(Role, "DOCTOR") else "doctor"),
+        ("Caregiver One", "caregiver@example.com", "caregiver123", Role.CAREGIVER if hasattr(Role, "CAREGIVER") else "caregiver"),
     ]
+    added = 0
     for name, email, pwd, role in demo:
-        users_db.append({"name": name, "email": email.lower(), "password": hash_password(pwd), "role": role})
-    return {"message": "Seeded demo users", "count": len(users_db)}
-
-
-# --- Notes for integration with real DB (replace this section later) ---
-"""
-Integration notes (do these when you replace the in-memory store):
-
-- Replace `users_db` lookups with DB queries (SQLAlchemy session).
-- Use a proper User model (id, name, email, password_hash, role).
-- In register(), create + commit user row and return user id/email.
-- In login(), query user by email and verify password against stored hash.
-- For protected_route, fetch user from DB using user id in JWT (preferred) rather than only email.
-- Use Alembic for database migrations to add a 'role' column if missing.
-
-Example pattern (outline):
-    from backend.db import SessionLocal
-    from backend.models import User
-
-    db = SessionLocal()
-    user = db.query(User).filter(User.email == payload.email).first()
-    if user and verify_password(...):
-        token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
-"""
+        if not db.query(User).filter(User.email == email.lower()).first():
+            db.add(User(name=name, email=email.lower(), password_hash=hash_password(pwd), role=role))
+            added += 1
+    if added:
+        db.commit()
+    return {"message": "Seed complete", "added": added}
 
 # End of file
