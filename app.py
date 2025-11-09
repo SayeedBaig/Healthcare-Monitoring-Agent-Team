@@ -17,6 +17,13 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
     login_page.show_login()
     st.stop()
 
+from ui import role_dashboard
+
+role = st.session_state["user_role"]
+if role.lower() ==  "doctor": menu = ["Dashboard", "Patient Health Analytics", "Medication Tracker"]
+elif role.lower() == "patient": menu = ["Dashboard", "Medication Tracker", "Fitness Data", "AI Assistant"]
+elif role.lower() == "caregiver": menu = ["Dashboard", "Medication Tracker", "Nutrition Insights", "Health Tips"]
+
 # App setup
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
 st.title("🏥 Healthcare Monitoring AI Agent")
@@ -26,9 +33,12 @@ create_tables()
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
-user_role = role_selector()
 # UPDATED: Added "Nutrition Insights" to the navigation
-page = st.sidebar.radio("Go to", ["Medication Tracker", "Fitness Data", "Nutrition Insights", "Health Tips","AI Assistant","Health Analytics"])
+page = st.sidebar.radio("Go to", menu)
+
+# ----- Dashboard Page (Based On Role) -----
+if page == "Dashboard":
+    role_dashboard.show_role_dashboard(role)
 
 # ----- PAGE 1: Medication Tracker (UNCHANGED) -----
 if page == "Medication Tracker":
@@ -129,7 +139,7 @@ elif page == "AI Assistant":
         display_logs()
 
 # ----- PAGE 6: Health Analytics -----
-elif page == "Health Analytics":
+elif page == "Patient Health Analytics":
     st.header("📈 Health Analytics")
     from ui import charts_section
     charts_section.show_charts()
