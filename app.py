@@ -11,6 +11,12 @@ from scripts.db_operations import (
 # New import for enhanced Day 5 plan
 from scripts.api_utils import get_nutrition_data 
 from agents.health_chatbot import process_health_query
+
+from ui import login_page
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    login_page.show_login()
+    st.stop()
+
 # App setup
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
 st.title("🏥 Healthcare Monitoring AI Agent")
