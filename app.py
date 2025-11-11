@@ -11,7 +11,15 @@ from scripts.db_operations import (
 # New import for enhanced Day 5 plan
 from scripts.api_utils import get_nutrition_data 
 from agents.health_chatbot import process_health_query
+defaults = {
+    "show_login": True,
+    "authenticated": False,
+    "user_role": None,
+}
 
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 from ui import login_page
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     login_page.show_login()
