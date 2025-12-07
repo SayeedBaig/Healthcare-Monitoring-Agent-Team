@@ -28,9 +28,16 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 from ui import role_dashboard
 
 role = st.session_state["user_role"]
-if role.lower() ==  "doctor": menu = ["Dashboard", "Patient Health Analytics", "Medication Tracker"]
-elif role.lower() == "patient": menu = ["Dashboard", "Medication Tracker", "Fitness Data", "AI Assistant"]
-elif role.lower() == "caregiver": menu = ["Dashboard", "Medication Tracker", "Nutrition Insights", "Health Tips"]
+# Add extra pages for Patient & Doctor
+if role.lower() == "doctor":
+    menu = ["Dashboard", "Patient Health Analytics", "Medication Tracker", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+elif role.lower() == "patient":
+    menu = ["Dashboard", "Medication Tracker", "Fitness Data", "AI Assistant", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+elif role.lower() == "caregiver":
+    menu = ["Dashboard", "Medication Tracker", "Nutrition Insights", "Health Tips"]
+else:
+    menu = ["Dashboard", "Medication Tracker", "Fitness Data", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+
 
 # App setup
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
@@ -55,7 +62,7 @@ if page == "Medication Tracker":
     st.subheader("Add New Medication")
     med_name = st.text_input("Medicine Name")
     schedule = st.text_input("Schedule (e.g., Morning & Night)")
-    user_id = 1  # using mock user for now
+    user_id = st.session_state.get("user_id",1)
 
     if st.button("Save Medication"):
         if med_name and schedule:
@@ -66,7 +73,7 @@ if page == "Medication Tracker":
 
     st.markdown("---")
     st.subheader("📋 Saved Medications")
-    meds = fetch_medications()
+    meds = fetch_medications(user_id=user_id)
     if meds:
         st.table({"Medicine": [m[0] for m in meds], "Schedule": [m[1] for m in meds]})
     else:
@@ -76,7 +83,7 @@ if page == "Medication Tracker":
 elif page == "Fitness Data":
     st.header("🏃 Fitness Data Entry")
 
-    user_id = 1
+    user_id = st.session_state.get("user_id",1)
     steps = st.number_input("Steps", min_value=0, step=100)
     calories = st.number_input("Calories Burned", min_value=0, step=10)
     heart_rate = st.number_input("Heart Rate (bpm)", min_value=0, step=1)
@@ -88,7 +95,7 @@ elif page == "Fitness Data":
 
     st.markdown("---")
     st.subheader("📊 Latest Fitness Record")
-    fitness = fetch_fitness()
+    fitness = fetch_fitness(user_id=user_id)
     st.metric("Steps", fitness["steps"])
     st.metric("Calories", fitness["calories"])
     st.metric("Heart Rate", f"{fitness['heart_rate']} bpm")
@@ -152,4 +159,19 @@ elif page == "Patient Health Analytics":
     from ui import charts_section
     charts_section.show_charts()
 
-    
+# ----- NEW PAGE: Health Workflow -----
+elif page == "Health Workflow":
+    from ui.workflow_ui import show_workflow_ui
+    show_workflow_ui()
+
+elif page == "Goals":
+    from ui.goals_ui import show_goals_ui
+    show_goals_ui()
+
+elif page == "CSV Upload":
+    from ui.csv_upload import show_csv_upload_ui
+    show_csv_upload_ui()
+
+elif page == "Nutrition / Symptoms":
+    from ui.nutrition_symptom_ui import show_nutrition_symptom_ui
+    show_nutrition_symptom_ui()
