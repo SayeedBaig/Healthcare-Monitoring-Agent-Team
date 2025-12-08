@@ -1,4 +1,6 @@
-# agents/interaction_checker.py
+from agents.indian_health_db_tool import check_interaction
+
+
 def check_med_interaction(med_list):
     """
     med_list: list of medication names OR list of tuples (med_name, schedule)
@@ -29,5 +31,17 @@ def check_med_interaction(med_list):
         if n in seen:
             conflicts.append(f"Duplicate medication entry: '{n}'")
         seen.add(n)
+
+    # --- Indian medicine DB interaction check ---
+    n = len(names)
+    for i in range(n):
+        for j in range(i + 1, n):
+            med1 = names[i]
+            med2 = names[j]
+            desc = check_interaction(med1, med2)
+            if desc:
+                conflicts.append(
+                    f"Indian DB: Interaction between '{med1}' and '{med2}' – {desc}"
+                )
 
     return conflicts

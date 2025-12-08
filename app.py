@@ -22,6 +22,8 @@ from ui.registration import show_registration
 from backend.logs_handler import display_logs
 from scripts.api_utils import get_nutrition_data
 from agents.health_chatbot import process_health_query
+from ui.india_medicine_ui import india_medicine_page
+
 
 # initialize session defaults
 defaults = {
@@ -66,13 +68,47 @@ if not user_id:
 
 # --- Build sidebar menu based on role ---
 if role.lower() == "doctor":
-    menu = ["Dashboard", "Patient Health Analytics", "Medication Tracker", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+    menu = [
+        "Dashboard",
+        "Patient Health Analytics",
+        "Medication Tracker",
+        "Health Workflow",
+        "Goals",
+        "CSV Upload",
+        "Nutrition / Symptoms",
+        "Indian Medicine Info & Interactions",
+    ]
 elif role.lower() == "patient":
-    menu = ["Dashboard", "Medication Tracker", "Fitness Data", "AI Assistant", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+    menu = [
+        "Dashboard",
+        "Medication Tracker",
+        "Fitness Data",
+        "AI Assistant",
+        "Health Workflow",
+        "Goals",
+        "CSV Upload",
+        "Nutrition / Symptoms",
+        "Indian Medicine Info & Interactions",
+    ]
 elif role.lower() == "caregiver":
-    menu = ["Dashboard", "Medication Tracker", "Nutrition Insights", "Health Tips"]
+    menu = [
+        "Dashboard",
+        "Medication Tracker",
+        "Nutrition Insights",
+        "Health Tips",
+        "Indian Medicine Info & Interactions",
+    ]
 else:
-    menu = ["Dashboard", "Medication Tracker", "Fitness Data", "Health Workflow", "Goals", "CSV Upload", "Nutrition / Symptoms"]
+    menu = [
+        "Dashboard",
+        "Medication Tracker",
+        "Fitness Data",
+        "Health Workflow",
+        "Goals",
+        "CSV Upload",
+        "Nutrition / Symptoms",
+        "Indian Medicine Info & Interactions",
+    ]
 
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", menu)
@@ -294,3 +330,7 @@ elif page == "CSV Upload":
 elif page == "Nutrition / Symptoms":
     from ui.nutrition_symptom_ui import show_nutrition_symptom_ui
     show_nutrition_symptom_ui()
+
+elif page == "Indian Medicine Info & Interactions":
+    india_medicine_page()
+
