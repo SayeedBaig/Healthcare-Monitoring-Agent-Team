@@ -2,3 +2,6 @@ ERROR:root:Test Error Triggered: division by zero
 ERROR:root:Test Error Triggered: division by zero
 ERROR:root:Test Error Triggered: division by zero
 ERROR:root:Test Error Triggered: division by zero
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"

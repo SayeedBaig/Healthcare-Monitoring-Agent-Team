@@ -53,7 +53,7 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
         show_registration()
     col1, col2 = st.columns([1,1])
     with col2:
-        if st.button("Register", key="top_nav_register"):
+        if st.button("Create an account", key="top_nav_register"):
             st.session_state["show_login"] = False    
 
     st.stop()  # stop the rest of the app until authenticated
@@ -72,6 +72,7 @@ if role.lower() == "doctor":
         "Dashboard",
         "Patient Health Analytics",
         "Medication Tracker",
+        "Fitness Data",
         "Health Workflow",
         "Goals",
         "CSV Upload",
@@ -113,7 +114,6 @@ else:
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", menu)
 
-
 # ----- Dashboard -----
 if page == "Dashboard":
     st.header("Welcome")
@@ -121,9 +121,71 @@ if page == "Dashboard":
     current_user = get_user_by_id(user_id)
     st.write(f"Hello {current_user['name']} — Role: {current_user['role']}")
 
-    # Show Doctor ID only for doctors
-    if current_user["role"] == "doctor" or current_user["role"]== "patient":
-        st.info(f"🆔 Your ID: **{current_user['id']}**")
+    # Show Doctor ID for doctors
+    if current_user["role"] == "doctor":
+        st.info(f"🆔 Your Doctor ID: **{current_user['id']}**")
+
+        st.subheader("👨‍⚕️ Your Patients")
+        patients = fetch_patients_of_doctor(user_id)
+
+        if patients:
+            for p in patients:
+                st.write(f"- **{p['name']}** ({p['email']}) — Patient ID: {p['id']}")
+        else:
+            st.warning("You currently have no assigned patients.")
+
+        st.markdown("---")
+        st.success("📌 *Use the sidebar to manage medications, view patient fitness, analyze health trends, and more.*")
+
+    # Dashboard for Patients
+    elif current_user["role"] == "patient":
+        st.info(f"🆔 Your Patient ID: **{current_user['id']}**")
+
+        st.subheader("🧑‍⚕️ Your Assigned Doctor")
+        doctor = get_user_by_id(current_user.get("doctor_id"))
+
+        if doctor:
+            st.write(f"Doctor: **{doctor['name']}** ({doctor['email']})")
+            st.write(f"Doctor ID: {doctor['id']}")
+        else:
+            st.warning("You are not yet assigned to a doctor.")
+
+        st.markdown("---")
+        st.success("""
+### 📋 What You Can Do in This App
+- **Medication Tracker** → View medicines your doctor has prescribed  
+- **Fitness Data** → Add & update your BMI, steps, sleep, calories, BP & more  
+- **AI Assistant** → Ask health questions  
+- **Health Workflow** → Track your health tasks  
+- **Goals** → Add and monitor personal health goals  
+- **CSV Upload** → Upload health reports  
+- **Nutrition / Symptoms** → Explore food nutrients & symptom advice
+        """)
+
+    # Dashboard for Caregivers
+    elif current_user["role"] == "caregiver":
+        st.info(f"🆔 Your Caregiver ID: **{current_user['id']}**")
+
+        st.subheader("🧑‍🤝‍🧑 Assigned Patient")
+        patient = get_user_by_id(current_user.get("patient_id"))
+
+        if patient:
+            st.write(f"Patient: **{patient['name']}** ({patient['email']})")
+            st.write(f"Patient ID: {patient['id']}")
+        else:
+            st.warning("No patient is currently assigned to your caregiver account.")
+
+        st.markdown("---")
+        st.success("""
+### 👀 What You Can Do in This App
+- **Medication Tracker** → View your patient’s medications  
+- **Nutrition Insights** → View food nutrient information  
+- **Health Tips** → See general health recommendations  
+        """)
+
+    # Fallback
+    else:
+        st.info("Dashboard loaded.")
 
 # ----- Medication Tracker -----
 if page == "Medication Tracker":
