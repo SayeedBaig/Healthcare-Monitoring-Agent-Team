@@ -56,6 +56,18 @@ def show_registration():
 
         try:
             add_user(name, email, phone, password_hash, role, doctor_id, patient_id)
-            st.success("✅ Registration successful! Please login now.")
+            st.success("✅ Registration successful! Redirecting to login...")
+
+            # 🔑 Switch back to login view
+            st.session_state["show_login"] = True
+            st.session_state["authenticated"] = False
+
+            # 🔄 Rerun app so app.py shows the login page
+            st.rerun()
+
         except Exception as e:
             st.error(f"Registration failed: {e}")
+
+    if st.button("Back to Login", key="back_to_login"):
+        st.session_state["show_login"] = True
+        st.rerun()

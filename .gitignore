@@ -9,3 +9,8 @@ venv/
 .env
 .env/
 *.env
+.envhealthcare.db 
+system_logs.log 
+__pycache__/ 
+*.pyc 
+ui/sample_fitness.csv 

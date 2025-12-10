@@ -16,16 +16,16 @@ from scripts.db_operations import (
 from ui import login_page
 from ui.registration import show_registration
 
+from auth.logout_utils import logout
+from ui.account_delete_ui import show_account_delete_screen
 
-
-# UI imports (you already had these)
+# UI imports
 from backend.logs_handler import display_logs
 from scripts.api_utils import get_nutrition_data
 from agents.health_chatbot import process_health_query
 from ui.india_medicine_ui import india_medicine_page
 
-
-# initialize session defaults
+# ---- Session defaults ----
 defaults = {
     "show_login": True,
     "authenticated": False,
@@ -40,34 +40,48 @@ for key, val in defaults.items():
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
 st.title("🏥 Healthcare Monitoring AI Agent")
 
-# Ensure tables exist (no destructive actions here)
+# Ensure tables exist
 create_tables()
 
-# --- Login / Register navigation if user not authenticated ---
-if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    
-    # Render login or registration form based on session state
+# ---------- AUTH GATE ----------
+if not st.session_state.get("authenticated", False):
+
+    # Render login or registration form based on flag
     if st.session_state.get("show_login", True):
         login_page.show_login()
     else:
         show_registration()
-    col1, col2 = st.columns([1,1])
+
+    # Top-level button to switch to registration
+    col1, col2 = st.columns([1, 1])
     with col2:
         if st.button("Create an account", key="top_nav_register"):
-            st.session_state["show_login"] = False    
+            st.session_state["show_login"] = False
 
-    st.stop()  # stop the rest of the app until authenticated
+    st.stop()  # do not render the rest of app until logged in
 
+# ---------- USER CONTEXT ----------
+role = st.session_state.get("user_role")
+user_id = st.session_state.get("user_id")
 
-# --- User is authenticated, now show main menu ---
-role = st.session_state["user_role"]
-user_id = st.session_state.get("user_id", None)
 if not user_id:
     st.error("No user_id in session. Please login again.")
     st.stop()
 
-# --- Build sidebar menu based on role ---
-if role.lower() == "doctor":
+# Get full user record from DB
+current_user = get_user_by_id(user_id)
+if not current_user:
+    st.error("User not found in database. Please login again.")
+    st.stop()
+
+# Use role from DB if needed
+if not role:
+    role = current_user.get("role", "").lower()
+else:
+    role = role.lower()
+
+# ---------- SIDEBAR NAV ----------
+if role == "doctor":
     menu = [
         "Dashboard",
         "Patient Health Analytics",
@@ -79,7 +93,7 @@ if role.lower() == "doctor":
         "Nutrition / Symptoms",
         "Indian Medicine Info & Interactions",
     ]
-elif role.lower() == "patient":
+elif role == "patient":
     menu = [
         "Dashboard",
         "Medication Tracker",
@@ -91,7 +105,7 @@ elif role.lower() == "patient":
         "Nutrition / Symptoms",
         "Indian Medicine Info & Interactions",
     ]
-elif role.lower() == "caregiver":
+elif role == "caregiver":
     menu = [
         "Dashboard",
         "Medication Tracker",
@@ -100,6 +114,7 @@ elif role.lower() == "caregiver":
         "Indian Medicine Info & Interactions",
     ]
 else:
+    # fallback
     menu = [
         "Dashboard",
         "Medication Tracker",
@@ -114,14 +129,32 @@ else:
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", menu)
 
+# ---- Sidebar account section: Logout + Delete Account ----
+st.sidebar.markdown("---")
+st.sidebar.caption(f"Logged in as {current_user['name']} ({current_user['role']})")
+
+if st.sidebar.button("🚪 Log out"):
+    logout()
+
+if st.sidebar.button("🗑️ Delete My Account"):
+    st.session_state["show_delete_page"] = True
+    st.rerun()
+
+# If delete page active → show it immediately
+if st.session_state.get("show_delete_page", False):
+    from ui.account_delete_ui import show_account_delete_screen
+    show_account_delete_screen(current_user, current_user["role"].lower())
+    st.stop()
+
+# ---------- MAIN CONTENT ----------
+
 # ----- Dashboard -----
 if page == "Dashboard":
     st.header("Welcome")
 
-    current_user = get_user_by_id(user_id)
     st.write(f"Hello {current_user['name']} — Role: {current_user['role']}")
 
-    # Show Doctor ID for doctors
+    # Doctor dashboard
     if current_user["role"] == "doctor":
         st.info(f"🆔 Your Doctor ID: **{current_user['id']}**")
 
@@ -137,7 +170,7 @@ if page == "Dashboard":
         st.markdown("---")
         st.success("📌 *Use the sidebar to manage medications, view patient fitness, analyze health trends, and more.*")
 
-    # Dashboard for Patients
+    # Patient dashboard
     elif current_user["role"] == "patient":
         st.info(f"🆔 Your Patient ID: **{current_user['id']}**")
 
@@ -162,7 +195,7 @@ if page == "Dashboard":
 - **Nutrition / Symptoms** → Explore food nutrients & symptom advice
         """)
 
-    # Dashboard for Caregivers
+    # Caregiver dashboard
     elif current_user["role"] == "caregiver":
         st.info(f"🆔 Your Caregiver ID: **{current_user['id']}**")
 
@@ -183,18 +216,16 @@ if page == "Dashboard":
 - **Health Tips** → See general health recommendations  
         """)
 
-    # Fallback
     else:
         st.info("Dashboard loaded.")
 
 # ----- Medication Tracker -----
-if page == "Medication Tracker":
+elif page == "Medication Tracker":
     st.header("💊 Medication Tracker")
 
     # Doctor: select which patient to manage
     target_user_id = user_id
-    if role.lower() == "doctor":
-        # list patients for this doctor
+    if role == "doctor":
         patients = fetch_patients_of_doctor(user_id)
         patient_options = {f"{p['name']} ({p['email']})": p['id'] for p in patients}
         if patient_options:
@@ -204,8 +235,7 @@ if page == "Medication Tracker":
         else:
             st.info("You have no assigned patients.")
             target_user_id = None
-    elif role.lower() == "caregiver":
-        # caregiver: view medications for their patient
+    elif role == "caregiver":
         current = get_user_by_id(user_id)
         if current and current.get("patient_id"):
             target_user_id = current["patient_id"]
@@ -213,29 +243,24 @@ if page == "Medication Tracker":
             st.info("No patient assigned to your caregiver account.")
             target_user_id = None
     else:
-        # patient: operate on their own meds (view only)
         target_user_id = user_id
 
     st.markdown("---")
     if target_user_id:
-        # Show existing meds
         meds = fetch_medications(user_id=target_user_id, requester_id=user_id, requester_role=role)
         if meds:
             st.subheader("📋 Saved Medications")
-            # Display as table + for doctors allow edit/delete
             for med in meds:
                 med_name, schedule, notes, med_id, created_by = med
-                cols = st.columns([4,3,2])
+                cols = st.columns([4, 3, 2])
                 with cols[0]:
                     st.write(f"**{med_name}**")
                     st.write(notes)
                 with cols[1]:
                     st.write(schedule)
                 with cols[2]:
-                    # Doctor editing controls
-                    if role.lower() == "doctor" and (target_user_id != user_id or True):
+                    if role == "doctor":
                         if st.button(f"Edit#{med_id}", key=f"edit_{med_id}"):
-                            # simple inline edit modal-like
                             new_name = st.text_input("Medicine Name", value=med_name, key=f"name_{med_id}")
                             new_schedule = st.text_input("Schedule", value=schedule, key=f"sch_{med_id}")
                             new_notes = st.text_area("Notes", value=notes, key=f"notes_{med_id}")
@@ -247,14 +272,10 @@ if page == "Medication Tracker":
                             delete_medication(med_id)
                             st.success("Deleted.")
                             st.rerun()
-                    else:
-                        st.write("")
-
         else:
             st.info("No medications found for this user.")
 
-        # Add medication: only doctors can add meds for patients
-        if role.lower() == "doctor":
+        if role == "doctor":
             st.subheader("Add / Prescribe Medication")
             med_name = st.text_input("Medicine Name", key="new_med_name")
             schedule = st.text_input("Schedule (e.g., Morning & Night)", key="new_med_schedule")
@@ -268,7 +289,6 @@ if page == "Medication Tracker":
                     st.warning("Please provide med name and schedule.")
         else:
             st.info("Only doctors can add or edit medications.")
-
     else:
         st.info("Select a target patient to view medications.")
 
@@ -276,10 +296,8 @@ if page == "Medication Tracker":
 elif page == "Fitness Data":
     st.header("🏃 Fitness Data")
 
-    # Determine target (whose fitness we are viewing/editing)
     target_user_id = user_id
-    if role.lower() == "doctor":
-        # doctor selects a patient to view
+    if role == "doctor":
         patients = fetch_patients_of_doctor(user_id)
         patient_options = {f"{p['name']} ({p['email']})": p['id'] for p in patients}
         if patient_options:
@@ -291,7 +309,7 @@ elif page == "Fitness Data":
         else:
             st.info("You have no assigned patients.")
             st.stop()
-    elif role.lower() == "caregiver":
+    elif role == "caregiver":
         current = get_user_by_id(user_id)
         if current and current.get("patient_id"):
             target_user_id = current["patient_id"]
@@ -302,8 +320,7 @@ elif page == "Fitness Data":
         target_user_id = user_id
 
     fitness = fetch_fitness(user_id=target_user_id)
-    if role.lower() == "patient" and target_user_id == user_id:
-        # patient can edit / add
+    if role == "patient" and target_user_id == user_id:
         st.subheader("Enter / Update Your Fitness Data")
         bmi = st.number_input("Enter your BMI", min_value=0.0, value=float(fitness["bmi"]))
         steps = st.number_input("Steps", min_value=0, step=100, value=int(fitness["steps"]))
@@ -318,7 +335,6 @@ elif page == "Fitness Data":
             st.success("✅ Fitness data saved.")
             st.rerun()
     else:
-        # viewer (doctor or caregiver) sees metrics read-only
         st.subheader("📊 Latest Fitness Record (read-only)")
         st.metric("BMI", fitness["bmi"])
         st.metric("Steps", fitness["steps"])
@@ -395,4 +411,3 @@ elif page == "Nutrition / Symptoms":
 
 elif page == "Indian Medicine Info & Interactions":
     india_medicine_page()
-

@@ -1,4 +1,4 @@
-# scripts/db_operations.py
+
 import sqlite3
 from typing import Optional, List, Dict, Any
 
@@ -141,6 +141,41 @@ def fetch_medications(user_id: int, requester_id: Optional[int]=None, requester_
     rows = cur.fetchall()
     conn.close()
     return rows
+
+def delete_user_and_related(user_id: int):
+    """
+    Deletes a user and related rows in a safe way.
+    Only touches tables we know about in this file:
+      - medications (user_id)
+      - fitness_data (user_id)
+      - goals (user_id)  [optional]
+      - users (id)
+    Any missing table/column is silently ignored.
+    """
+    conn = get_connection()      
+    cur = conn.cursor()
+
+    def safe_delete(sql, params):
+        try:
+            cur.execute(sql, params)
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass   
+
+    # Delete medications belonging to this user
+    safe_delete("DELETE FROM medications WHERE user_id = ?", (user_id,))
+
+    # Delete fitness data
+    safe_delete("DELETE FROM fitness_data WHERE user_id = ?", (user_id,))
+
+    # Delete goals if exists
+    safe_delete("DELETE FROM goals WHERE user_id = ?", (user_id,))
+
+    # Finally delete main user record
+    safe_delete("DELETE FROM users WHERE id = ?", (user_id,))
+
+    conn.close()
+
 
 # -------------------- Fitness functions --------------------
 
