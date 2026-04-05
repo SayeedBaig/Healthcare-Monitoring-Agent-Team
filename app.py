@@ -15,6 +15,7 @@ from scripts.db_operations import (
 )
 from ui import login_page
 from ui.registration import show_registration
+from ui.lab_reports_ui import show_lab_reports_ui
 
 from auth.logout_utils import logout
 from ui.account_delete_ui import show_account_delete_screen
@@ -87,6 +88,7 @@ if role == "doctor":
         "Patient Health Analytics",
         "Medication Tracker",
         "Fitness Data",
+        "Lab Reports & Prediction",
         "Health Workflow",
         "Goals",
         "CSV Upload",
@@ -98,6 +100,7 @@ elif role == "patient":
         "Dashboard",
         "Medication Tracker",
         "Fitness Data",
+        "Lab Reports & Prediction",
         "AI Assistant",
         "Health Workflow",
         "Goals",
@@ -411,3 +414,6 @@ elif page == "Nutrition / Symptoms":
 
 elif page == "Indian Medicine Info & Interactions":
     india_medicine_page()
+
+elif page == "Lab Reports & Prediction":
+    show_lab_reports_ui(role=role, user_id=user_id)
