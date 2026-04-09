@@ -25,6 +25,7 @@ from backend.logs_handler import display_logs
 from scripts.api_utils import get_nutrition_data
 from agents.health_chatbot import process_health_query
 from ui.india_medicine_ui import india_medicine_page
+from ui.search_medicine_ui import search_medicine_page
 
 # ---- Session defaults ----
 defaults = {
@@ -106,7 +107,7 @@ elif role == "patient":
         "Goals",
         "CSV Upload",
         "Nutrition / Symptoms",
-        "Indian Medicine Info & Interactions",
+        "Search Medicine",
     ]
 elif role == "caregiver":
     menu = [
@@ -417,3 +418,6 @@ elif page == "Indian Medicine Info & Interactions":
 
 elif page == "Lab Reports & Prediction":
     show_lab_reports_ui(role=role, user_id=user_id)
+
+elif page == "Search Medicine":
+    search_medicine_page()
