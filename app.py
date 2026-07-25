@@ -24,8 +24,9 @@ from ui.account_delete_ui import show_account_delete_screen
 from backend.logs_handler import display_logs
 from scripts.api_utils import get_nutrition_data
 from agents.health_chatbot import process_health_query
-from ui.india_medicine_ui import india_medicine_page
 from ui.search_medicine_ui import search_medicine_page
+from ui.style_utils import inject_custom_css
+from ui.dashboard_ui import show_dashboard
 
 # ---- Session defaults ----
 defaults = {
@@ -40,7 +41,7 @@ for key, val in defaults.items():
         st.session_state[key] = val
 
 st.set_page_config(page_title="Healthcare Monitoring Agent", layout="wide")
-st.title("🏥 Healthcare Monitoring AI Agent")
+inject_custom_css()
 
 # Ensure tables exist
 create_tables()
@@ -86,7 +87,6 @@ else:
 if role == "doctor":
     menu = [
         "Dashboard",
-        "Patient Health Analytics",
         "Medication Tracker",
         "Fitness Data",
         "Lab Reports & Prediction",
@@ -94,7 +94,7 @@ if role == "doctor":
         "Goals",
         "CSV Upload",
         "Nutrition / Symptoms",
-        "Indian Medicine Info & Interactions",
+        "Search Medicine",
     ]
 elif role == "patient":
     menu = [
@@ -115,7 +115,7 @@ elif role == "caregiver":
         "Medication Tracker",
         "Nutrition Insights",
         "Health Tips",
-        "Indian Medicine Info & Interactions",
+        "Search Medicine",
     ]
 else:
     # fallback
@@ -127,7 +127,7 @@ else:
         "Goals",
         "CSV Upload",
         "Nutrition / Symptoms",
-        "Indian Medicine Info & Interactions",
+        "Search Medicine",
     ]
 
 st.sidebar.title("Navigation")
@@ -154,74 +154,7 @@ if st.session_state.get("show_delete_page", False):
 
 # ----- Dashboard -----
 if page == "Dashboard":
-    st.header("Welcome")
-
-    st.write(f"Hello {current_user['name']} — Role: {current_user['role']}")
-
-    # Doctor dashboard
-    if current_user["role"] == "doctor":
-        st.info(f"🆔 Your Doctor ID: **{current_user['id']}**")
-
-        st.subheader("👨‍⚕️ Your Patients")
-        patients = fetch_patients_of_doctor(user_id)
-
-        if patients:
-            for p in patients:
-                st.write(f"- **{p['name']}** ({p['email']}) — Patient ID: {p['id']}")
-        else:
-            st.warning("You currently have no assigned patients.")
-
-        st.markdown("---")
-        st.success("📌 *Use the sidebar to manage medications, view patient fitness, analyze health trends, and more.*")
-
-    # Patient dashboard
-    elif current_user["role"] == "patient":
-        st.info(f"🆔 Your Patient ID: **{current_user['id']}**")
-
-        st.subheader("🧑‍⚕️ Your Assigned Doctor")
-        doctor = get_user_by_id(current_user.get("doctor_id"))
-
-        if doctor:
-            st.write(f"Doctor: **{doctor['name']}** ({doctor['email']})")
-            st.write(f"Doctor ID: {doctor['id']}")
-        else:
-            st.warning("You are not yet assigned to a doctor.")
-
-        st.markdown("---")
-        st.success("""
-### 📋 What You Can Do in This App
-- **Medication Tracker** → View medicines your doctor has prescribed  
-- **Fitness Data** → Add & update your BMI, steps, sleep, calories, BP & more  
-- **AI Assistant** → Ask health questions  
-- **Health Workflow** → Track your health tasks  
-- **Goals** → Add and monitor personal health goals  
-- **CSV Upload** → Upload health reports  
-- **Nutrition / Symptoms** → Explore food nutrients & symptom advice
-        """)
-
-    # Caregiver dashboard
-    elif current_user["role"] == "caregiver":
-        st.info(f"🆔 Your Caregiver ID: **{current_user['id']}**")
-
-        st.subheader("🧑‍🤝‍🧑 Assigned Patient")
-        patient = get_user_by_id(current_user.get("patient_id"))
-
-        if patient:
-            st.write(f"Patient: **{patient['name']}** ({patient['email']})")
-            st.write(f"Patient ID: {patient['id']}")
-        else:
-            st.warning("No patient is currently assigned to your caregiver account.")
-
-        st.markdown("---")
-        st.success("""
-### 👀 What You Can Do in This App
-- **Medication Tracker** → View your patient’s medications  
-- **Nutrition Insights** → View food nutrient information  
-- **Health Tips** → See general health recommendations  
-        """)
-
-    else:
-        st.info("Dashboard loaded.")
+    show_dashboard(current_user)
 
 # ----- Medication Tracker -----
 elif page == "Medication Tracker":
@@ -390,12 +323,6 @@ elif page == "AI Assistant":
     with st.expander("View System Logs"):
         display_logs()
 
-# ----- Patient Health Analytics -----
-elif page == "Patient Health Analytics":
-    st.header("📈 Health Analytics")
-    from ui import charts_section
-    charts_section.show_charts()
-
 # ----- Health Workflow / Goals / CSV Upload / Nutrition / Symptoms -----
 elif page == "Health Workflow":
     from ui.workflow_ui import show_workflow_ui
@@ -412,9 +339,6 @@ elif page == "CSV Upload":
 elif page == "Nutrition / Symptoms":
     from ui.nutrition_symptom_ui import show_nutrition_symptom_ui
     show_nutrition_symptom_ui()
-
-elif page == "Indian Medicine Info & Interactions":
-    india_medicine_page()
 
 elif page == "Lab Reports & Prediction":
     show_lab_reports_ui(role=role, user_id=user_id)

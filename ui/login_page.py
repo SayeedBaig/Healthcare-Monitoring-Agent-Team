@@ -29,3 +29,19 @@ def show_login():
             st.rerun()
         else:
             st.error("❌ Invalid email or password. Please try again.")
+
+    st.markdown("---")
+    with st.expander("🔑 Seeded Demo Accounts (Groop / Testing)"):
+        st.markdown("""
+        Use these seeded credentials for full feature testing:
+        
+        * 👨‍⚕️ **Doctor Role**:
+          * **Email**: `doctor@example.com` | **Password**: `doctor123`
+        * 🧑‍🦽 **Patient Role**:
+          * **Email**: `patient@example.com` | **Password**: `patient123`
+        * 🧑‍🤝‍🧑 **Caregiver Role**:
+          * **Email**: `caregiver@example.com` | **Password**: `caregiver123`
+        
+        ---
+        *⚠️ **Environment Notice**: On serverless hosting (e.g. Streamlit Cloud), the local SQLite database resets periodically. Newly registered accounts may disappear after a few days. For persistent access, use the seeded accounts above.*
+        """)

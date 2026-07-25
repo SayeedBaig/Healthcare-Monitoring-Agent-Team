@@ -19,7 +19,7 @@ client = Groq(api_key=GROQ_API_KEY)
 # Resolve database path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
-DB_PATH = os.path.join(PROJECT_ROOT, "health_data.db")
+DB_PATH = os.path.join(PROJECT_ROOT, "healthcare.db")
 
 # Small cache (optional)
 CHATBOT_CACHE = {}
@@ -29,7 +29,9 @@ CACHE_TTL = 30   # 30 seconds
 # ------------------------------
 # Fetch medication info from DB
 # ------------------------------
-def get_medication_info_from_db(search_term: str) -> str | None:
+def get_medication_info_from_db(search_term: str, user_id: int = None) -> str | None:
+    if not user_id:
+        return None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -37,8 +39,8 @@ def get_medication_info_from_db(search_term: str) -> str | None:
         cursor.execute("""
             SELECT med_name, schedule, notes
             FROM medications
-            WHERE LOWER(med_name) LIKE ?
-        """, (f"%{search_term.lower()}%",))
+            WHERE user_id = ? AND LOWER(med_name) LIKE ?
+        """, (user_id, f"%{search_term.lower()}%"))
 
         row = cursor.fetchone()
         if not row:
@@ -61,7 +63,7 @@ def get_medication_info_from_db(search_term: str) -> str | None:
 # ------------------------------
 # Main Chatbot Handler
 # ------------------------------
-def process_health_query(user_query: str) -> str:
+def process_health_query(user_query: str, user_id: int = None) -> str:
     query = user_query.lower()
 
     # 1. Cache
@@ -72,16 +74,33 @@ def process_health_query(user_query: str) -> str:
         else:
             del CHATBOT_CACHE[query]
 
-    # 2. If query mentions medication, check DB first
-    if "medicine" in query or "medication" in query or "dose" in query or "tablet" in query:
-        # Extract a keyword from user query (simple approach)
-        words = user_query.split()
+    # 2. Check medications in active prescriptions first
+    words = [w.strip("?,.!") for w in user_query.split()]
+    if user_id:
         for w in words:
-            result = get_medication_info_from_db(w)
-            if result:
-                return "📘 **Your Medication Info:**\n\n" + result
+            if len(w) > 3:
+                result = get_medication_info_from_db(w, user_id)
+                if result:
+                    return "📘 **Your Active Prescription Info:**\n\n" + result
 
-    # 3. Real LLM response (Groq)
+    # 3. Fallback: check general Indian Medicine Reference info
+    try:
+        from agents.indian_health_db_tool import get_medicine_info
+        for w in words:
+            if len(w) > 3:
+                gen_info = get_medicine_info(w)
+                if gen_info:
+                    return (
+                        f"💊 **Medicine Reference Info (General):**\n\n"
+                        f"**Name:** {gen_info['name']}\n"
+                        f"**Use-case:** {gen_info['use_case']}\n"
+                        f"**Side-effects:** {gen_info['side_effects']}\n"
+                        f"**Precautions:** {gen_info['precautions']}"
+                    )
+    except Exception:
+        pass
+
+    # 4. Real LLM response (Groq)
     try:
         completion = client.chat.completions.create(
             model="moonshotai/kimi-k2-instruct-0905",

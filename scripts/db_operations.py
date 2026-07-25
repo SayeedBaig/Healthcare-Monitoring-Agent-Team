@@ -2,7 +2,10 @@
 import sqlite3
 from typing import Optional, List, Dict, Any
 
-DB_NAME = "healthcare.db"
+import os
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+DB_NAME = os.path.join(PROJECT_ROOT, "healthcare.db")
 
 def get_connection():
     return sqlite3.connect(DB_NAME)
@@ -22,7 +25,116 @@ def create_tables():
             patient_id INTEGER
         )
     """)
-    # Add other tables (medications, fitness, etc.)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS medications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            med_name TEXT NOT NULL,
+            schedule TEXT NOT NULL,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS fitness_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            bmi REAL,
+            steps INTEGER,
+            sleep REAL,
+            calories INTEGER,
+            heart_rate INTEGER,
+            exercise REAL,
+            bp INTEGER,
+            date TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lab_reports (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id               INTEGER NOT NULL,
+            age                   INTEGER DEFAULT 0,
+            sbp                   INTEGER DEFAULT 0,
+            dbp                   INTEGER DEFAULT 0,
+            bun                   REAL    DEFAULT 0.0,
+            gender                INTEGER DEFAULT 1,
+            bmi                   REAL    DEFAULT 0.0,
+            fpg                   REAL    DEFAULT 0.0,
+            ffpg                  REAL    DEFAULT 0.0,
+            chol                  REAL    DEFAULT 0.0,
+            tri                   REAL    DEFAULT 0.0,
+            hdl                   REAL    DEFAULT 0.0,
+            ldl                   REAL    DEFAULT 0.0,
+            alt                   REAL    DEFAULT 0.0,
+            ccr                   REAL    DEFAULT 0.0,
+            sex                   INTEGER DEFAULT 1,
+            serum_creatinine      REAL    DEFAULT 0.0,
+            uacr                  REAL    DEFAULT 0.0,
+            hemoglobin            REAL    DEFAULT 0.0,
+            potassium             REAL    DEFAULT 0.0,
+            phosphate             REAL    DEFAULT 0.0,
+            calcium               REAL    DEFAULT 0.0,
+            hba1c                 REAL    DEFAULT 0.0,
+            date                  TEXT    DEFAULT '',
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    
+    # Auto-seed if users table is empty
+    c.execute("SELECT COUNT(*) FROM users")
+    if c.fetchone()[0] == 0:
+        import bcrypt
+        
+        def hash_pwd(pwd: str) -> str:
+            return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
+            
+        # Seed Doctor (id=1)
+        c.execute("""
+            INSERT INTO users (id, name, email, phone, password_hash, role, doctor_id, patient_id)
+            VALUES (1, 'Dr. John Smith', 'doctor@example.com', '555-0199', ?, 'doctor', NULL, NULL)
+        """, (hash_pwd("doctor123"),))
+        
+        # Seed Patient (id=2, linked to Doctor id=1)
+        c.execute("""
+            INSERT INTO users (id, name, email, phone, password_hash, role, doctor_id, patient_id)
+            VALUES (2, 'Alice Cooper', 'patient@example.com', '555-0100', ?, 'patient', 1, NULL)
+        """, (hash_pwd("patient123"),))
+        
+        # Seed Caregiver (id=3, linked to Patient id=2)
+        c.execute("""
+            INSERT INTO users (id, name, email, phone, password_hash, role, doctor_id, patient_id)
+            VALUES (3, 'Bob Cooper', 'caregiver@example.com', '555-0122', ?, 'caregiver', NULL, 2)
+        """, (hash_pwd("caregiver123"),))
+        
+        # Seed some default fitness data for Alice Cooper (id=2)
+        c.execute("""
+            INSERT INTO fitness_data (user_id, bmi, steps, sleep, calories, heart_rate, exercise, bp, date)
+            VALUES (2, 23.4, 6200, 7.2, 350, 72, 1.5, 120, '2026-07-18')
+        """)
+        
+        # Seed some default medications for Alice Cooper (id=2)
+        c.execute("""
+            INSERT INTO medications (user_id, med_name, schedule, notes, created_by)
+            VALUES (2, 'Paracetamol', 'Morning & Night', 'Take after food', 1)
+        """)
+        c.execute("""
+            INSERT INTO medications (user_id, med_name, schedule, notes, created_by)
+            VALUES (2, 'Metformin', 'Morning (with breakfast)', 'Keep blood glucose in check', 1)
+        """)
+        
+        # Seed some default lab reports for Alice Cooper (id=2)
+        c.execute("""
+            INSERT INTO lab_reports (
+                user_id, age, sbp, dbp, bun, gender, bmi, fpg, ffpg, chol, tri, hdl, ldl, alt, ccr,
+                sex, serum_creatinine, uacr, hemoglobin, potassium, phosphate, calcium, hba1c, date
+            ) VALUES (
+                2, 34, 120, 80, 15.2, 2, 23.4, 5.4, 6.2, 4.5, 1.8, 1.2, 2.5, 25.0, 95.0,
+                2, 0.9, 15.0, 13.5, 4.2, 3.5, 9.2, 5.8, '2026-07-18'
+            )
+        """)
+        
     conn.commit()
     conn.close()
 
